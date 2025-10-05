@@ -1,13 +1,14 @@
-# main.py - CORRECTED VERSION
 import json
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+import os
 
 from . import agents
 from . import models, schema, utils, database, auth
 
-import os
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
@@ -91,7 +92,6 @@ def get_preferences(db: Session = Depends(get_db), user: models.User = Depends(a
         health_conditions=pref.health_conditions.split(",") if pref.health_conditions else [],
     )
 
-# Optional: Add a protected endpoint for testing
 @app.get("/protected")
 def get_protected_data(user: models.User = Depends(auth.get_current_user)):
     return {
@@ -100,9 +100,8 @@ def get_protected_data(user: models.User = Depends(auth.get_current_user)):
         "user_id": user.id
     }
 
-# In a real-world scenario, get this key from a secure environment variable
-TOGETHER_API_KEY = "tgp_v1_3L1Gq3VKiuALrOxkGgBUe9sRPnZWVSx8gcL18coxquI"
-# Also, set it as an environment variable for LangChain's convenience
+# Read Together API key from .env
+TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 os.environ["TOGETHER_API_KEY"] = TOGETHER_API_KEY
 
 @app.post("/generate-menu", response_model=schema.MenuResponse)
@@ -122,7 +121,6 @@ def generate_menu(req: schema.MenuGenerateRequest, current_user: models.User = D
     agent = agents.IndianMenuAgent(together_api_key=TOGETHER_API_KEY)
     menu_result = agent.generate_weekly_menu(preferences)
 
-    # Deactivate previous menu
     db.query(models.WeeklyMenu).filter(models.WeeklyMenu.user_id == current_user.id, models.WeeklyMenu.is_active == 1).update({"is_active": 0})
 
     new_menu = models.WeeklyMenu(
@@ -142,59 +140,3 @@ def generate_menu(req: schema.MenuGenerateRequest, current_user: models.User = D
         "generated_at": menu_result["generated_at"],
         "menu_id": new_menu.id
     }
-
-@app.get("/current-menu", response_model=schema.MenuResponse)
-def get_current_menu(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
-    menu = db.query(models.WeeklyMenu).filter(models.WeeklyMenu.user_id == current_user.id, models.WeeklyMenu.is_active == 1).first()
-    if not menu:
-        raise HTTPException(status_code=404, detail="No active menu found")
-    return {
-        "menu": json.loads(menu.menu_data),
-        "preferences_used": json.loads(menu.generation_prompt),
-        "generated_at": menu.created_at,
-        "menu_id": menu.id
-    }
-
-@app.post("/regenerate-meal", response_model=schema.MenuResponse)
-def regenerate_meal(req: schema.MenuRegenerateRequest, current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
-    menu = db.query(models.WeeklyMenu).filter(models.WeeklyMenu.id == req.menu_id, models.WeeklyMenu.user_id == current_user.id).first()
-    if not menu:
-        raise HTTPException(status_code=404, detail="Menu not found")
-
-    preferences = json.loads(menu.generation_prompt)
-    agent = agents.IndianMenuAgent(together_api_key=TOGETHER_API_KEY)
-    
-    # Use the agent to find a new dish, which might involve a search
-    prompt = f"Suggest one new dish for {req.day}'s {req.meal} with cuisine '{preferences['cuisine'][0]}' and diet type '{preferences['diet_type']}'. The current dishes are: {json.loads(menu.menu_data)[req.day].values()}. Do not repeat any of them."
-    
-    response = agent.agent_executor.invoke({"input": prompt})
-    new_dish = response['output']
-
-    current_menu = json.loads(menu.menu_data)
-    current_menu[req.day][req.meal] = new_dish
-    menu.menu_data = json.dumps(current_menu)
-    db.commit()
-
-    return {
-        "menu": current_menu,
-        "preferences_used": preferences,
-        "generated_at": menu.created_at,
-        "menu_id": menu.id
-    }
-
-@app.get("/menu-history", response_model=schema.MenuHistoryResponse)
-def get_menu_history(limit: int = 10, current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
-    history = db.query(models.WeeklyMenu).filter(models.WeeklyMenu.user_id == current_user.id).order_by(models.WeeklyMenu.id.desc()).limit(limit).all()
-    result = []
-
-    for item in history:
-        full_menu = json.loads(item.menu_data)
-        preview = {day: list(meals.values()) for day, meals in full_menu.items()}
-        result.append(schema.MenuHistoryItem(
-            id=item.id,
-            generated_at=item.created_at,
-            is_active=bool(item.is_active),
-            menu_preview=preview
-        ))
-
-    return {"menus": result}
