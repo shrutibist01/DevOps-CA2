@@ -13,16 +13,14 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)),
 models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Add React dev server ports
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Dependency
 def get_db():
     db = database.SessionLocal()
     try:
@@ -100,8 +98,9 @@ def get_protected_data(user: models.User = Depends(auth.get_current_user)):
         "user_id": user.id
     }
 
-# Read Together API key from .env
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
+if not TOGETHER_API_KEY:
+    print("Warning: TOGETHER_API_KEY not set in .env")
 os.environ["TOGETHER_API_KEY"] = TOGETHER_API_KEY
 
 @app.post("/generate-menu", response_model=schema.MenuResponse)
