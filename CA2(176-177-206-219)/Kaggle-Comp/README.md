@@ -10,7 +10,22 @@
 - Srishti Parulekar (22070122219)
 
 This notebook presents a simple yet effective baseline model for the **[Store Sales - Time Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting)** competition.  
-The goal is to **predict daily sales for different stores and product families** using historical data and related external factors.
+
+---
+
+## Problem Statement
+
+The goal of this competition is to **predict daily sales** for different product families across multiple Favorita stores located in Ecuador.
+
+Participants are provided with historical sales data that includes:
+- Store and product identifiers  
+- Promotion information  
+- Dates and sales values  
+
+The task is to build a model that can accurately forecast sales for a **15-day period following the end of the training data**.  
+Predictions must be submitted in the form of a `submission.csv` file containing the expected sales for each `(store_nbr, family, date)` combination in the test set.
+
+Accurate forecasting will help **Corporación Favorita** improve inventory management, demand planning, and promotional strategies.
 
 ---
 
@@ -53,3 +68,4 @@ This serves as a simple yet strong baseline for further experimentation.
 ## Leaderboard Position
 
 **Public Leaderboard Rank: #408**
+
