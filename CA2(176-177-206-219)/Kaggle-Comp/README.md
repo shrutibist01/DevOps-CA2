@@ -49,3 +49,7 @@ This serves as a simple yet strong baseline for further experimentation.
 |------------|-------------|
 | Local Validation  | 1.0267 |
 | Public Leaderboard after submission | 1.08776 |
+
+## Leaderboard Position
+
+**Public Leaderboard Rank: #408**
